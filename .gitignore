@@ -4,11 +4,7 @@ __pycache__/
 .pytest_cache/
 node_modules/
 venv/
-.venv/
-.env
 env/
 .vscode/
 .idea/
 sync_log.txt
-auth_state.json
-.profiles/
