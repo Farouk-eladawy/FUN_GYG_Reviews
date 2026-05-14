@@ -949,3 +949,4 @@
 {"status": "success", "processed_records_estimate": 0, "errors": [], "elapsed_seconds": 295.82187962532043, "airtable_table_name": "Fun_Time_Booking", "account_index": 1, "timestamp": "2026-05-14T05:03:27.976666"}
 {"status": "success", "processed_records_estimate": 0, "errors": [], "elapsed_seconds": 206.37245297431946, "airtable_table_name": "Fun_Time_Booking", "account_index": 1, "timestamp": "2026-05-14T05:19:20.207728"}
 {"status": "success", "processed_records_estimate": 0, "errors": [], "elapsed_seconds": 229.45859003067017, "airtable_table_name": "Fun_Time_Booking", "account_index": 1, "timestamp": "2026-05-14T06:18:33.830263"}
+{"status": "success", "processed_records_estimate": 0, "errors": [], "elapsed_seconds": 208.92925715446472, "airtable_table_name": "Fun_Time_Booking", "account_index": 1, "timestamp": "2026-05-14T07:24:58.009948"}
