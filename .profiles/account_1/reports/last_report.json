@@ -2,8 +2,8 @@
   "status": "success",
   "processed_records_estimate": 1,
   "errors": [],
-  "elapsed_seconds": 237.09110260009766,
+  "elapsed_seconds": 332.16957211494446,
   "airtable_table_name": "Fun_Time_Booking",
   "account_index": 1,
-  "timestamp": "2026-08-02T15:36:07.602814"
+  "timestamp": "2026-08-02T15:54:36.111214"
 }
