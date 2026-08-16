@@ -1,11 +1,9 @@
 {
-  "status": "restart",
+  "status": "success",
   "processed_records_estimate": 0,
-  "errors": [
-    "Failed to recover session for page 3 after 3 attempts."
-  ],
-  "elapsed_seconds": 488.6170861721039,
+  "errors": [],
+  "elapsed_seconds": 217.21312928199768,
   "airtable_table_name": "Fun_Time_Booking",
   "account_index": 1,
-  "timestamp": "2026-08-16T08:30:07.293023"
+  "timestamp": "2026-08-16T08:42:27.293637"
 }
