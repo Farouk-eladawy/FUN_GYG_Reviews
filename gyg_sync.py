@@ -977,20 +977,72 @@ def _safe_inner_text(locator, fallback=""):
 def extract_booking_reference_from_text(text):
     if not text:
         return None
-    for line in str(text).split("\n"):
-        if "Booking reference" in line:
-            candidate = line.replace("Booking reference", "").strip().replace(":", "").strip()
-            labeled_matches = _BOOKING_REF_RE.findall(candidate)
-            unique_labeled = list(dict.fromkeys(labeled_matches))
-            if len(unique_labeled) == 1:
-                return unique_labeled[0]
-            if candidate and _BOOKING_REF_RE.fullmatch(candidate):
-                return candidate
+    labeled = extract_booking_reference_from_labeled_lines(text)
+    if labeled:
+        return labeled
     matches = _BOOKING_REF_RE.findall(str(text))
     unique = list(dict.fromkeys(matches))
     if len(unique) == 1:
         return unique[0]
     return None
+
+def extract_booking_reference_from_labeled_lines(text):
+    if not text:
+        return None
+    for line in str(text).split("\n"):
+        if "booking reference" not in line.lower():
+            continue
+        line_matches = _BOOKING_REF_RE.findall(line)
+        if line_matches:
+            return line_matches[0]
+        candidate = re.sub(r"(?i)booking reference", "", line).strip(" :-\t")
+        if candidate and _BOOKING_REF_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+def close_card_overlays(page):
+    try:
+        page.keyboard.press("Escape")
+    except:
+        pass
+    human_delay(0.15, 0.35)
+
+def _click_show_details(card):
+    expand_btn = card.locator('[data-testid="review-card-expand"]')
+    if expand_btn.count() > 0 and expand_btn.first.is_visible():
+        click_like_human(expand_btn, force=True)
+        return True
+    show_details = card.locator('button:has-text("Show details")').or_(
+        card.locator('a:has-text("Show details")')
+    )
+    if show_details.count() > 0 and show_details.first.is_visible():
+        click_like_human(show_details, force=True)
+        return True
+    return False
+
+def extract_booking_reference_from_card(card, page):
+    selectors = (
+        '[data-testid="Booking reference"]',
+        '[data-testid*="booking-reference" i]',
+    )
+    for selector in selectors:
+        try:
+            el = card.locator(selector)
+            if el.count() > 0:
+                ref = extract_booking_reference_from_text(el.first.inner_text())
+                if ref:
+                    return ref
+        except:
+            pass
+
+    try:
+        ref = extract_booking_reference_from_text(card.inner_text())
+        if ref:
+            return ref
+    except:
+        pass
+
+    return extract_booking_reference_from_details(page, card)
 
 def extract_booking_reference_from_details(page, card):
     opened_pages_before = 0
@@ -1000,13 +1052,7 @@ def extract_booking_reference_from_details(page, card):
         opened_pages_before = 0
 
     try:
-        expand_btn = card.locator('[data-testid="review-card-expand"]')
-        if expand_btn.count() > 0 and expand_btn.first.is_visible():
-            click_like_human(expand_btn, force=True)
-        else:
-            show_details = card.locator('button:has-text("Show details")')
-            if show_details.count() > 0 and show_details.first.is_visible():
-                click_like_human(show_details, force=True)
+        _click_show_details(card)
     except:
         pass
 
@@ -1022,36 +1068,29 @@ def extract_booking_reference_from_details(page, card):
     deadline = time.time() + 8
     while time.time() < deadline:
         try:
+            card_text = card.inner_text()
+            ref = extract_booking_reference_from_labeled_lines(card_text)
+            if not ref:
+                ref = extract_booking_reference_from_text(card_text)
+            if ref:
+                close_card_overlays(page)
+                return ref
+        except:
+            pass
+
+        try:
             dialog = page.locator('[role="dialog"]').last
             dialog_text = _safe_inner_text(dialog, "")
             ref = extract_booking_reference_from_text(dialog_text)
             if ref:
-                try:
-                    page.keyboard.press("Escape")
-                except:
-                    pass
+                close_card_overlays(page)
                 return ref
         except:
             pass
 
         time.sleep(0.5)
 
-    try:
-        card_text_after = card.inner_text()
-        ref = extract_booking_reference_from_text(card_text_after)
-        if ref:
-            try:
-                page.keyboard.press("Escape")
-            except:
-                pass
-            return ref
-    except:
-        pass
-
-    try:
-        page.keyboard.press("Escape")
-    except:
-        pass
+    close_card_overlays(page)
     return None
 
 def customer_review_text_only(text):
@@ -1415,49 +1454,33 @@ def scrape_cycle_in_session(browser, context, page, owns_browser, recreate_fresh
                 time.sleep(10)
                 break
 
-            review_cards = page.locator('[data-testid="review-card"]').all()
-            log(f"Found {len(review_cards)} reviews on this page.")
+            card_count = page.locator('[data-testid="review-card"]').count()
+            log(f"Found {card_count} reviews on this page.")
 
-            for index, card in enumerate(review_cards):
+            for index in range(card_count):
                 try:
+                    close_card_overlays(page)
+                    card = page.locator('[data-testid="review-card"]').nth(index)
                     try:
-                        expand_btn = card.locator('[data-testid="review-card-expand"]')
-                        if expand_btn.count() > 0 and expand_btn.first.is_visible():
-                            click_like_human(expand_btn, force=True)
-                        else:
-                            show_details = card.locator('button:has-text("Show details")')
-                            if show_details.count() > 0 and show_details.first.is_visible():
-                                click_like_human(show_details, force=True)
-                    except Exception as e:
-                        log(f"Warning: Could not expand review card {index}: {e}", "DEBUG")
+                        card.scroll_into_view_if_needed()
+                    except:
+                        pass
+                    human_delay(0.2, 0.6)
 
                     comment_el = card.locator('[data-testid="review-card-comment"]')
                     comment = comment_el.first.inner_text() if comment_el.count() > 0 else "No comment"
 
-                    booking_ref = None
                     card_text = ""
-                    try:
-                        booking_ref_el = card.locator('[data-testid="Booking reference"]')
-                        if booking_ref_el.count() > 0 and booking_ref_el.first.is_visible():
-                            booking_ref = extract_booking_reference_from_text(booking_ref_el.first.inner_text())
-                    except:
-                        pass
-
-                    if not booking_ref:
+                    booking_ref = extract_booking_reference_from_card(card, page)
+                    if booking_ref:
+                        log(f"Booking reference for card {index + 1}: {booking_ref}", "DEBUG")
+                    else:
                         try:
                             card_text = card.inner_text()
                         except:
                             card_text = "Failed to extract text"
-                        booking_ref = extract_booking_reference_from_text(card_text)
-
-                    if not booking_ref:
-                        booking_ref = extract_booking_reference_from_details(page, card)
-                        if booking_ref:
-                            log(f"Booking reference extracted via details: {booking_ref}", "DEBUG")
-
-                    if not booking_ref:
-                        log(f"Could not find Booking Reference for review {index}. Skipping.", "WARNING")
-                        log(f"Raw card text for review {index}: {card_text[:500]}...", "DEBUG")
+                        log(f"Could not find Booking Reference for review {index + 1}. Skipping.", "WARNING")
+                        log(f"Raw card text for review {index + 1}: {card_text[:500]}...", "DEBUG")
                         continue
 
                     stars_container_loc = card.locator('.c-user-rating__stars-container')
@@ -1480,7 +1503,7 @@ def scrape_cycle_in_session(browser, context, page, owns_browser, recreate_fresh
                     }
 
                     try:
-                        reply_btn = card.locator('button:has-text("Reply")').or_(card.locator('button:has-text("Respond")'))
+                        reply_btn = card.locator('button:has-text("Reply"), a:has-text("Reply"), button:has-text("Respond"), a:has-text("Respond")')
                         already_replied_ui = card.locator('text=Replied on').count() > 0 or card.locator('text=Response from supplier').count() > 0
                         already_replied_cache = booking_ref in replied_cache
 
@@ -1580,9 +1603,12 @@ def scrape_cycle_in_session(browser, context, page, owns_browser, recreate_fresh
                         else:
                             log(f"Airtable sync did not complete for {booking_ref} (status={sync_status}).", "WARNING")
 
+                    close_card_overlays(page)
+
                 except Exception as e:
                     errors.append(f"review_{index}: {e}")
-                    log(f"Error processing review {index}: {e}", "ERROR")
+                    log(f"Error processing review {index + 1}: {e}", "ERROR")
+                    close_card_overlays(page)
             
             has_next_page = False
             
@@ -1598,7 +1624,7 @@ def scrape_cycle_in_session(browser, context, page, owns_browser, recreate_fresh
             except:
                 pass
             
-            if len(review_cards) == 0:
+            if card_count == 0:
                 log("No reviews on this page. Stopping.", "INFO")
                 break
                 
